@@ -6,27 +6,24 @@ import logging
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
+
+# Importar los dos tipos de lógica de análisis
 from .model.predict import load_model_resources, make_prediction
+from .blood_analyzer import analyze_blood_data
 
 # --- Configuración de Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- Constantes ---
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'dcm'}
+ALLOWED_EXTENSIONS_IMG = {'png', 'jpg', 'jpeg', 'dcm'}
+ALLOWED_EXTENSIONS_DATA = {'json', 'csv'} # Ampliamos para datos
 MODEL_PATH = 'backend/model/model.h5'
 
-# Nombres de las clases que el modelo puede predecir
-CLASS_NAMES = [
-    "Atelectasia",
-    "Cardiomegalia",
-    "Derrame Pleural",
-    "Infiltración",
-    "Masa",
-    "Nódulo",
-    "Neumonía",
-    "Neumotórax",
-    "Normal"
+# Nombres de las clases para el modelo de PIEL (antes pulmonar)
+CLASS_NAMES_SKIN = [
+    "Benigno",
+    "Maligno"
 ]
 
 def create_app():
@@ -38,68 +35,76 @@ def create_app():
     # Crear el directorio de subidas si no existe
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    # --- Carga del Modelo al iniciar ---
+    # --- Carga del Modelo de Imagen al iniciar ---
     try:
-        logging.info("Cargando modelo de Keras...")
-        model = load_model(MODEL_PATH)
-        logging.info("Modelo cargado exitosamente. Inicializando recursos...")
-        # Carga el modelo y el explainer en la memoria para un acceso rápido
-        load_model_resources(model, CLASS_NAMES)
+        logging.info("Cargando modelo de Keras para análisis de piel...")
+        skin_model = load_model(MODEL_PATH)
+        logging.info("Modelo de piel cargado. Inicializando recursos...")
+        load_model_resources(skin_model, CLASS_NAMES_SKIN)
     except Exception as e:
-        logging.error(f"Error fatal al cargar el modelo: {e}")
-        # Si el modelo no se carga, la aplicación no puede funcionar.
-        # Podríamos manejar esto de forma más elegante, pero por ahora es un punto crítico.
-        model = None
+        logging.error(f"Error fatal al cargar el modelo de piel: {e}")
+        skin_model = None
 
-    def allowed_file(filename):
-        """Verifica si la extensión del archivo es válida."""
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    def is_file_allowed(filename, analysis_type):
+        """Verifica si la extensión del archivo es válida para el tipo de análisis."""
+        if not '.' in filename:
+            return False
+        ext = filename.rsplit('.', 1)[1].lower()
+        if analysis_type == 'piel':
+            return ext in ALLOWED_EXTENSIONS_IMG
+        elif analysis_type == 'sangre':
+            return ext in ALLOWED_EXTENSIONS_DATA
+        return False
 
     # --- Rutas de la Aplicación ---
     @app.route('/')
     def index():
-        """Sirve la página principal de la aplicación."""
         return render_template('index.html')
 
     @app.route('/about')
     def about():
-        """Sirve la página 'Sobre el proyecto'."""
         return render_template('about.html')
 
     @app.route('/api/predict', methods=['POST'])
     def predict():
-        """Recibe una imagen y devuelve una predicción del modelo."""
-        if model is None:
-            logging.warning("Se recibió una solicitud de predicción, pero el modelo no está cargado.")
-            return jsonify({"status": "error", "message": "El modelo de IA no está disponible."}), 500
-            
-        # Verificar si se envió un archivo
+        """Endpoint unificado para manejar todos los tipos de análisis."""
+        # 1. Validar la solicitud
         if 'file' not in request.files:
-            return jsonify({"status": "error", "message": "No se encontró el archivo en la solicitud."}), 400
+            return jsonify({"status": "error", "message": "No se encontró el archivo."}), 400
         
         file = request.files['file']
-        
-        # Verificar si el archivo tiene un nombre
-        if file.filename == '':
-            return jsonify({"status": "error", "message": "No se seleccionó ningún archivo."}), 400
+        analysis_type = request.form.get('analysis_type')
+
+        if not analysis_type or analysis_type not in ['piel', 'sangre']:
+            return jsonify({"status": "error", "message": "Tipo de análisis no especificado o inválido."}), 400
             
-        # Verificar si el archivo es del tipo permitido
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            try:
-                file.save(filepath)
-                logging.info(f"Archivo guardado en: {filepath}")
-                
-                # Realizar la predicción con la nueva lógica
+        if file.filename == '' or not is_file_allowed(file.filename, analysis_type):
+            return jsonify({"status": "error", "message": "Archivo no válido o tipo de archivo no permitido para este análisis."}), 400
+
+        # 2. Procesar según el tipo de análisis
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        logging.info(f"Archivo guardado en: {filepath} para análisis de tipo: {analysis_type}")
+
+        try:
+            if analysis_type == 'piel':
+                if skin_model is None:
+                     return jsonify({"status": "error", "message": "El modelo de IA para piel no está disponible."}), 500
+                # Llamar a la lógica de predicción de imágenes
                 prediction_result = make_prediction(filepath)
-                
                 return jsonify(prediction_result)
 
-            except Exception as e:
-                logging.error(f"Error al procesar el archivo {filename}: {e}")
-                return jsonify({"status": "error", "message": f"Error interno al procesar el archivo: {e}"}), 500
-        else:
-            return jsonify({"status": "error", "message": "Tipo de archivo no permitido."}), 400
+            elif analysis_type == 'sangre':
+                # Leer el contenido del archivo de texto/json
+                with open(filepath, 'r') as f:
+                    content = f.read()
+                # Llamar a la nueva lógica de análisis de sangre
+                analysis_result = analyze_blood_data(content)
+                return jsonify(analysis_result)
+
+        except Exception as e:
+            logging.error(f"Error durante el análisis del archivo {filename}: {e}")
+            return jsonify({"status": "error", "message": f"Error interno del servidor: {e}"}), 500
 
     return app

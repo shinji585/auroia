@@ -1,68 +1,63 @@
 /**
  * main.js
  * 
- * Punto de entrada principal. Orquesta la inicialización de la UI,
- * la carga de archivos y el flujo de análisis.
+ * Orquesta la lógica principal, manejando eventos del usuario y 
+ * coordinando entre la UI, el manejador de subidas y la API.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // Función principal de manejo de archivo
+    const handleFile = async (file) => {
+        if (!file) return;
 
-    // 1. Inicializar la UI en su estado por defecto.
-    setUIState('initial');
+        const analysisType = DOMElements.analysisType.value;
+        
+        // Mostrar previsualización (solo para imágenes)
+        if (analysisType === 'piel') {
+            showImagePreview(file);
+        }
+        
+        setUIState('loading');
+        
+        try {
+            // Llamar a la API con el archivo y el tipo de análisis
+            const response = await fetchPrediction(file, analysisType);
+            
+            // Actualizar la UI con la respuesta, pasando el tipo de análisis
+            updateResults(response, analysisType);
+            setUIState('content');
 
-    // 2. Preparar el área de carga para recibir un archivo.
-    initializeUpload(handleAnalysisRequest);
+        } catch (error) {
+            console.error("Error en el flujo principal:", error);
+            setUIState('error', error.message);
+        }
+    };
 
-    // 3. Configurar listeners para los botones de la UI.
+    // Inicializar el manejador de subidas
+    initializeUpload(handleFile);
+    
+    // --- Event Listeners ---
+
+    // Cambiar imagen o archivo
     DOMElements.clearBtn.addEventListener('click', resetUI);
+    DOMElements.newAnalysisBtn?.addEventListener('click', resetUI); // El botón puede no existir al inicio
+
+    // Reintentar en caso de error
     DOMElements.retryBtn.addEventListener('click', () => {
-        // Reintenta usando el último archivo válido (si existe)
-        const lastFile = DOMElements.fileInput.files[0];
-        if (lastFile) {
-            handleAnalysisRequest(lastFile);
+        // Intenta reenviar el último archivo seleccionado si existe
+        if (DOMElements.fileInput.files.length > 0) {
+            handleFile(DOMElements.fileInput.files[0]);
         }
     });
-    DOMElements.newAnalysisBtn.addEventListener('click', resetUI);
-});
 
-/**
- * Orquesta el proceso de análisis de una imagen.
- * @param {File} file El archivo a analizar.
- */
-async function handleAnalysisRequest(file) {
-    // Mostrar estado de carga
-    setUIState('loading');
-
-    try {
-        // No necesitamos convertir a base64 para la simulación,
-        // pero esta línea será útil en el futuro.
-        // const imageBase64 = await toBase64(file);
-
-        // Llamar a la API simulada
-        const response = await fetchPrediction(null);
-
-        // Actualizar la UI con los resultados
-        updateResults(response);
-
-        // Mostrar el contenido de los resultados
-        setUIState('content');
-
-    } catch (error) {
-        console.error("Error en el flujo de análisis:", error);
-        setUIState('error', error.message || "Ocurrió un error desconocido.");
-    }
-}
-
-/**
- * Utilidad para convertir un archivo a formato base64.
- * @param {File} file
- * @returns {Promise<string>}
- */
-function toBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
+    // Listener para el cambio de tipo de análisis
+    DOMElements.analysisType.addEventListener('change', (event) => {
+        const selectedType = event.target.value;
+        updateUploadAreaForType(selectedType);
+        resetUI(); // Resetea el estado al cambiar de tipo
     });
-}
+
+    // Inicializar el área de subida según el valor por defecto
+    updateUploadAreaForType(DOMElements.analysisType.value);
+});

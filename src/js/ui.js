@@ -19,19 +19,20 @@ const DOMElements = {
 
     // Input y botones
     fileInput: document.getElementById('fileInput'),
+    analysisType: document.getElementById('analysisType'),
     clearBtn: document.getElementById('clearBtn'),
     retryBtn: document.getElementById('retryBtn'),
-    newAnalysisBtn: document.getElementById('newAnalysisBtn'),
+    // newAnalysisBtn se crea dinámicamente
+
+    // Elementos de UI de carga
+    uploadTitle: document.getElementById('uploadTitle'),
+    uploadHint: document.getElementById('uploadHint'),
 
     // Elementos de datos
     previewImg: document.getElementById('previewImg'),
     errorMessage: document.getElementById('errorMessage'),
-    diagnosisTitle: document.getElementById('diagnosisTitle'),
-    confidencePercent: document.getElementById('confidencePercent'),
-    confidenceFill: document.getElementById('confidenceFill'),
-    differentialList: document.getElementById('differentialList'),
-    shapImage: document.getElementById('shapImage'),
-};
+    resultsHint: document.getElementById('resultsHint'),
+}; 
 
 /**
  * Gestiona la visibilidad de los diferentes estados de la UI.
@@ -39,33 +40,32 @@ const DOMElements = {
  * @param {string} [message] - Mensaje de error opcional.
  */
 function setUIState(state, message = '') {
-    // Ocultar todas las vistas de la columna de resultados
     DOMElements.resultsEmpty.classList.add('hidden');
     DOMElements.resultsLoading.classList.add('hidden');
     DOMElements.resultsError.classList.add('hidden');
     DOMElements.resultsContent.classList.add('hidden');
-    
-    // Quitar animación de los elementos clave
-    DOMElements.diagnosisTitle.classList.remove('animate-text-glow');
-    DOMElements.confidencePercent.classList.remove('animate-text-glow');
 
-    // Gestionar visibilidad de la columna de carga
-    const isPreview = state === 'preview' || state === 'loading' || state === 'content' || state === 'error';
-    DOMElements.uploadArea.classList.toggle('hidden', isPreview);
-    DOMElements.imagePreview.classList.toggle('hidden', !isPreview);
+    const analysisType = DOMElements.analysisType.value;
+    const isImageAnalysis = analysisType === 'piel';
+    
+    // La previsualización de imagen solo se muestra para análisis de piel
+    const showPreview = isImageAnalysis && (state === 'preview' || state === 'loading' || state === 'content' || state === 'error');
+    DOMElements.uploadArea.classList.toggle('hidden', showPreview);
+    DOMElements.imagePreview.classList.toggle('hidden', !showPreview);
 
     switch (state) {
         case 'initial':
             DOMElements.resultsEmpty.classList.remove('hidden');
             break;
         case 'loading':
+            // Si no es análisis de imagen, el área de carga no se oculta
+            if (!isImageAnalysis) {
+                DOMElements.uploadArea.classList.remove('hidden');
+            }
             DOMElements.resultsLoading.classList.remove('hidden');
             break;
         case 'content':
             DOMElements.resultsContent.classList.remove('hidden');
-            // Añadir animación a los elementos clave
-            DOMElements.diagnosisTitle.classList.add('animate-text-glow');
-            DOMElements.confidencePercent.classList.add('animate-text-glow');
             break;
         case 'error':
             DOMElements.resultsError.classList.remove('hidden');
@@ -75,7 +75,25 @@ function setUIState(state, message = '') {
 }
 
 /**
- * Muestra la previsualización de la imagen seleccionada.
+ * Actualiza el área de carga según el tipo de análisis seleccionado.
+ * @param {string} type - 'sangre' o 'piel'
+ */
+function updateUploadAreaForType(type) {
+    if (type === 'sangre') {
+        DOMElements.uploadTitle.textContent = "Arrastra tu archivo de datos aquí";
+        DOMElements.uploadHint.textContent = "Formatos soportados: JSON (hasta 1MB)";
+        DOMElements.fileInput.accept = "application/json";
+        DOMElements.resultsHint.textContent = "Selecciona un archivo de análisis de sangre para comenzar.";
+    } else { // piel
+        DOMElements.uploadTitle.textContent = "Arrastra tu imagen de piel aquí";
+        DOMElements.uploadHint.textContent = "Formatos soportados: JPG, PNG (hasta 10MB)";
+        DOMElements.fileInput.accept = "image/jpeg,image/png";
+        DOMElements.resultsHint.textContent = "Selecciona una imagen de piel para iniciar el diagnóstico.";
+    }
+}
+
+/**
+ * Muestra la previsualización de la imagen seleccionada (solo para análisis de piel).
  * @param {File} file
  */
 function showImagePreview(file) {
@@ -88,55 +106,113 @@ function showImagePreview(file) {
 }
 
 /**
- * Rellena la UI con los resultados de la predicción.
- * @param {object} apiResponse
+ * Enrutador principal para mostrar los resultados según el tipo de análisis.
+ * @param {object} apiResponse - La respuesta completa de la API.
+ * @param {string} analysisType - El tipo de análisis realizado ('sangre' o 'piel').
  */
-function updateResults(apiResponse) {
-    const { prediction } = apiResponse;
-    const { main_diagnosis, differential_diagnoses, shap_image_url } = prediction;
+function updateResults(apiResponse, analysisType) {
+    DOMElements.resultsContent.innerHTML = ''; // Limpiar resultados anteriores
 
-    // Diagnóstico Principal
-    DOMElements.diagnosisTitle.textContent = main_diagnosis.name;
-    DOMElements.confidencePercent.textContent = `${Math.round(main_diagnosis.confidence * 100)}%`;
+    if (analysisType === 'piel' && apiResponse.prediction) {
+        renderSkinAnalysisResults(apiResponse.prediction);
+    } else if (analysisType === 'sangre' && apiResponse.report) {
+        renderBloodAnalysisResults(apiResponse.report);
+    } else {
+        throw new Error("La respuesta de la API no tiene el formato esperado.");
+    }
+
+    // Añadir botón de nuevo análisis al final
+    const newAnalysisBtn = document.createElement('button');
+    newAnalysisBtn.id = 'newAnalysisBtn';
+    newAnalysisBtn.className = "w-full mt-4 py-3 bg-brand-blue text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors duration-300";
+    newAnalysisBtn.textContent = "Analizar Otro Archivo";
+    newAnalysisBtn.addEventListener('click', resetUI);
+    DOMElements.resultsContent.appendChild(newAnalysisBtn);
+}
+
+/**
+ * Renderiza los resultados para el análisis de piel (formato imagen).
+ * @param {object} predictionData
+ */
+function renderSkinAnalysisResults(predictionData) {
+    const { main_diagnosis, differential_diagnoses, shap_image_url } = predictionData;
     
-    // Barra de confianza con color dinámico
     const confidence = main_diagnosis.confidence;
-    let barColorClass = 'bg-green-500'; // High confidence
-    if (confidence < 0.8) barColorClass = 'bg-yellow-500'; // Medium
-    if (confidence < 0.6) barColorClass = 'bg-red-500'; // Low
-    
-    DOMElements.confidenceFill.style.width = `0%`; // Reset inicial para animación
-    setTimeout(() => {
-        DOMElements.confidenceFill.style.width = `${confidence * 100}%`;
-        DOMElements.confidenceFill.className = `h-2.5 rounded-full transition-all duration-1000 ease-out ${barColorClass}`;
-    }, 100); // Pequeño delay para asegurar que la transición se aplique
+    let barColorClass = 'bg-green-500';
+    if (confidence < 0.8) barColorClass = 'bg-yellow-500';
+    if (confidence < 0.6) barColorClass = 'bg-red-500';
 
-    // Diagnósticos Diferenciales
-    DOMElements.differentialList.innerHTML = ''; // Limpiar lista anterior
-    differential_diagnoses.forEach(diag => {
-        const item = document.createElement('div');
-        item.className = 'grid grid-cols-2 items-center gap-4';
-        item.innerHTML = `
-            <p class="text-sm font-medium text-gray-300">${diag.name}</p>
-            <div class="flex items-center justify-end">
-                <div class="w-2/3 bg-brand-border rounded-full h-1.5 mr-3">
-                    <div class="bg-brand-blue h-1.5 rounded-full" style="width: ${diag.confidence * 100}%"></div>
-                </div>
-                <p class="text-sm font-mono text-gray-400">${(diag.confidence * 100).toFixed(0)}%</p>
+    let contentHTML = `
+        <!-- Diagnóstico Principal -->
+        <div class="bg-brand-dark p-6 rounded-lg border border-brand-border">
+            <div class="flex justify-between items-center">
+                <h2 class="text-3xl font-bold text-white animate-text-glow">${main_diagnosis.name}</h2>
+                <p class="text-4xl font-mono font-bold text-brand-blue animate-text-glow">${Math.round(confidence * 100)}%</p>
             </div>
-        `;
-        DOMElements.differentialList.appendChild(item);
-    });
+            <p class="text-sm text-gray-400 uppercase tracking-wider mt-2 mb-3">Confianza del Diagnóstico</p>
+            <div class="w-full bg-brand-border rounded-full h-2.5">
+                <div class="${barColorClass} h-2.5 rounded-full" style="width: ${confidence * 100}%"></div>
+            </div>
+        </div>
 
-    // Imagen SHAP
-    DOMElements.shapImage.src = shap_image_url;
+        <!-- Explicabilidad SHAP -->
+        <div>
+            <h3 class="text-xl font-semibold text-white mb-2">¿Por qué este diagnóstico?</h3>
+            <p class="text-sm text-gray-400 mb-3">Las áreas resaltadas en la imagen influyeron más en la decisión del modelo.</p>
+            <img src="${shap_image_url}" alt="Explicación SHAP" class="rounded-lg border border-brand-border w-full">
+        </div>
+    `;
+
+    DOMElements.resultsContent.innerHTML = contentHTML;
+}
+
+/**
+ * Renderiza los resultados para el análisis de sangre (formato texto).
+ * @param {object} reportData
+ */
+function renderBloodAnalysisResults(reportData) {
+    const { title, details, current_diagnoses, future_projections } = reportData;
+
+    let futureProjectionsHTML = future_projections.projections.map(p => `
+        <div class="flex justify-between items-center text-gray-300">
+            <span>${p.state}</span>
+            <span class="font-mono text-brand-blue">${(p.probability * 100).toFixed(0)}%</span>
+        </div>
+    `).join('');
+
+    let contentHTML = `
+        <!-- Título del Informe -->
+        <h2 class="text-3xl font-bold text-white text-center mb-4">${title}</h2>
+
+        <!-- Detalles del Análisis -->
+        <div class="bg-brand-dark p-4 rounded-lg border border-brand-border">
+            <h3 class="text-xl font-semibold text-white mb-3">Análisis de Valores</h3>
+            <pre class="text-sm text-gray-300 whitespace-pre-wrap font-mono">${details}</pre>
+        </div>
+
+        <!-- Diagnóstico Actual -->
+        <div class="bg-brand-dark p-4 rounded-lg border border-brand-border">
+            <h3 class="text-xl font-semibold text-white mb-3">Diagnóstico Actual Probable</h3>
+            <div class="flex flex-wrap gap-2">
+                ${current_diagnoses.map(d => `<span class="bg-brand-blue/20 text-brand-blue text-sm font-semibold px-3 py-1 rounded-full">${d}</span>`).join('')}
+            </div>
+        </div>
+
+        <!-- Proyecciones Futuras (Markov) -->
+        <div class="bg-brand-dark p-4 rounded-lg border border-brand-border">
+            <h3 class="text-xl font-semibold text-white mb-3">${future_projections.title}</h3>
+            <div class="space-y-2">${futureProjectionsHTML}</div>
+        </div>
+    `;
+    
+    DOMElements.resultsContent.innerHTML = contentHTML;
 }
 
 /**
  * Resetea la UI a su estado inicial.
  */
 function resetUI() {
-    DOMElements.fileInput.value = ''; // Permite seleccionar el mismo archivo de nuevo
+    DOMElements.fileInput.value = ''; 
     DOMElements.previewImg.src = '';
     setUIState('initial');
 }

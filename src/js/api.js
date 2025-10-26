@@ -1,47 +1,49 @@
 /**
  * api.js
  * 
- * Simula la comunicación con el backend. En el futuro, este archivo
- * contendrá la lógica para realizar llamadas reales al servidor Flask.
+ * Realiza la comunicación con el backend de Flask para obtener predicciones reales.
  */
 
 /**
- * Simula una llamada a la API para obtener una predicción de diagnóstico.
+ * Envía el archivo al backend y obtiene una predicción o análisis.
  * 
- * @param {string | null} imageBase64 - La imagen codificada en base64 (actualmente no se usa).
- * @returns {Promise<object>} Una promesa que se resuelve con los datos de la predicción.
+ * @param {File} file - El archivo a analizar (imagen o datos).
+ * @param {string} analysisType - El tipo de análisis a realizar ('piel' o 'sangre').
+ * @returns {Promise<object>} Una promesa que se resuelve con los datos de la predicción del backend.
  */
-async function fetchPrediction(imageBase64) {
-    console.log("Iniciando simulación de llamada a la API...");
+async function fetchPrediction(file, analysisType) {
+    console.log(`Iniciando llamada a la API para análisis de tipo: ${analysisType}`);
 
-    // Simular el tiempo de espera de la red (entre 1.5 y 3 segundos)
-    const delay = ms => new Promise(res => setTimeout(res, ms));
-    await delay(1500 + Math.random() * 1500);
+    const formData = new FormData();
+    formData.append('file', file);
+    // ¡LA LÍNEA QUE FALTABA! Añadir el tipo de análisis al formulario.
+    formData.append('analysis_type', analysisType);
 
-    // Simular una posible falla de la API (20% de probabilidad)
-    if (Math.random() < 0.2) {
-        console.error("Simulación de error de API.");
-        throw new Error("El modelo de IA no pudo procesar la imagen. Inténtelo de nuevo.");
-    }
+    try {
+        const response = await fetch('/api/predict', {
+            method: 'POST',
+            body: formData,
+        });
 
-    // Datos de ejemplo que simulan la respuesta del backend
-    const mockApiResponse = {
-        status: "success",
-        prediction: {
-            main_diagnosis: {
-                name: "Neumonía Viral",
-                confidence: 0.86
-            },
-            differential_diagnoses: [
-                { name: "Neumonía Bacteriana", confidence: 0.11 },
-                { name: "Edema Pulmonar", confidence: 0.02 },
-                { name: "Normal", confidence: 0.01 }
-            ],
-            // Usamos una URL de placeholder para la imagen SHAP
-            shap_image_url: "https://i.imgur.com/IRs42dD.png"
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            const errorMessage = errorData?.message || `Error del servidor: ${response.status}`;
+            console.error("Error en la respuesta de la API:", errorMessage);
+            throw new Error(errorMessage);
         }
-    };
 
-    console.log("Simulación de API completada con éxito.", mockApiResponse);
-    return mockApiResponse;
+        const data = await response.json();
+
+        if (data.status === 'error') {
+            console.error("Error reportado por el backend:", data.message);
+            throw new Error(data.message);
+        }
+
+        console.log("Llamada a la API completada con éxito.", data);
+        return data;
+
+    } catch (error) {
+        console.error("Fallo en la comunicación con la API:", error);
+        throw new Error(error.message || "No se pudo establecer comunicación con el servidor de análisis.");
+    }
 }

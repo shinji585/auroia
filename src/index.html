@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aurora IA - Análisis Pulmonar</title>
+    <title>Aurora IA - Análisis Clínico</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -60,21 +59,30 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch w-full max-w-6xl">
             
             <!-- COLUMNA IZQUIERDA: CARGA Y PREVIEW -->
-            <div class="bg-brand-dark-secondary border border-brand-border rounded-lg shadow-lg flex flex-col h-full">
+            <div class="bg-brand-dark-secondary border border-brand-border rounded-lg shadow-lg flex flex-col h-full p-6 space-y-4">
                 
+                <!-- Selector de Tipo de Análisis -->
+                <div>
+                    <label for="analysisType" class="block mb-2 text-sm font-medium text-white">1. Seleccione el tipo de análisis</label>
+                    <select id="analysisType" class="bg-brand-dark border border-brand-border text-white text-sm rounded-lg focus:ring-brand-blue focus:border-brand-blue block w-full p-2.5">
+                        <option value="sangre" selected>Análisis de Sangre (Datos)</option>
+                        <option value="piel">Análisis de Piel (Imagen)</option>
+                    </select>
+                </div>
+
                 <!-- ÁREA DE CARGA -->
-                <div id="uploadArea" class="flex-grow flex flex-col items-center justify-center p-8 border-4 border-dashed border-brand-border rounded-lg m-6 hover:border-brand-blue hover:bg-gray-800/20 transition-all duration-300 cursor-pointer">
+                <div id="uploadArea" class="flex-grow flex flex-col items-center justify-center p-8 border-4 border-dashed border-brand-border rounded-lg hover:border-brand-blue hover:bg-gray-800/20 transition-all duration-300 cursor-pointer">
                     <svg class="w-16 h-16 text-brand-blue mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                    <h3 class="text-xl font-semibold text-white">Arrastra tu imagen aquí</h3>
+                    <h3 id="uploadTitle" class="text-xl font-semibold text-white text-center">Arrastra tu archivo de datos aquí</h3>
                     <p class="text-gray-400 mt-1">o haz click para seleccionar</p>
-                    <p class="text-xs text-gray-500 mt-4">Formatos soportados: JPG, PNG, DICOM (hasta 10MB)</p>
-                    <input type="file" id="fileInput" class="hidden" accept="image/jpeg,image/png,.dcm">
+                    <p id="uploadHint" class="text-xs text-gray-500 mt-4">Formatos soportados: CSV, JSON (hasta 1MB)</p>
+                    <input type="file" id="fileInput" class="hidden" accept=".csv,application/json">
                 </div>
 
                 <!-- VISTA PREVIA -->
-                <div id="imagePreview" class="hidden flex-grow flex-col items-center justify-center p-6 m-6">
-                    <img id="previewImg" src="" alt="Previsualización de imagen" class="max-h-[450px] rounded-lg shadow-md mb-4">
-                    <button id="clearBtn" class="mt-2 px-4 py-2 bg-brand-blue text-white rounded-md font-semibold hover:bg-blue-600 transition-colors duration-300">Cambiar Imagen</button>
+                <div id="imagePreview" class="hidden flex-grow flex-col items-center justify-center">
+                    <img id="previewImg" src="" alt="Previsualización de imagen" class="max-h-[400px] rounded-lg shadow-md mb-4">
+                    <button id="clearBtn" class="mt-2 px-4 py-2 bg-brand-blue text-white rounded-md font-semibold hover:bg-blue-600 transition-colors duration-300">Cambiar Archivo</button>
                 </div>
             </div>
 
@@ -85,7 +93,7 @@
                 <div id="resultsEmpty" class="flex-grow flex flex-col items-center justify-center text-center p-8">
                     <svg class="w-20 h-20 text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
                     <h2 class="text-2xl font-bold text-white">Esperando Análisis</h2>
-                    <p class="text-gray-400 mt-2">Carga una radiografía pulmonar para iniciar el diagnóstico por IA.</p>
+                    <p id="resultsHint" class="text-gray-400 mt-2">Selecciona un tipo de análisis y carga un archivo para comenzar.</p>
                 </div>
 
                 <!-- ESTADO DE CARGA -->
@@ -103,33 +111,7 @@
                 
                 <!-- CONTENIDO DE RESULTADOS -->
                 <div id="resultsContent" class="hidden flex-grow flex-col p-6 space-y-6">
-                    
-                    <!-- Diagnóstico Principal -->
-                    <div class="bg-brand-dark p-6 rounded-lg border border-brand-border">
-                        <div class="flex justify-between items-center">
-                            <h2 id="diagnosisTitle" class="text-3xl font-bold text-white"></h2>
-                            <p id="confidencePercent" class="text-4xl font-mono font-bold text-brand-blue"></p>
-                        </div>
-                        <p class="text-sm text-gray-400 uppercase tracking-wider mt-2 mb-3">Confianza del Diagnóstico</p>
-                        <div class="w-full bg-brand-border rounded-full h-2.5">
-                            <div id="confidenceFill" class="h-2.5 rounded-full transition-all duration-1000 ease-out"></div>
-                        </div>
-                    </div>
-
-                    <!-- Diagnósticos Diferenciales -->
-                    <div>
-                        <h3 class="text-xl font-semibold text-white mb-3">Diagnósticos Alternativos</h3>
-                        <div id="differentialList" class="space-y-3"></div>
-                    </div>
-
-                    <!-- Explicabilidad SHAP -->
-                    <div>
-                        <h3 class="text-xl font-semibold text-white mb-2">¿Por qué este diagnóstico?</h3>
-                        <p class="text-sm text-gray-400 mb-3">Las áreas resaltadas en la imagen indican las características que más influyeron en la decisión del modelo.</p>
-                        <img id="shapImage" src="" alt="Explicación SHAP" class="rounded-lg border border-brand-border w-full">
-                    </div>
-
-                    <button id="newAnalysisBtn" class="w-full mt-4 py-3 bg-brand-blue text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors duration-300">Analizar Otra Imagen</button>
+                    <!-- El contenido de esta sección será generado dinámicamente por ui.js -->
                 </div>
 
             </div>
