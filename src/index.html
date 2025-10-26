@@ -1,12 +1,151 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hello World</title>
-  </head>
 
-  <body>
-    <h1>Hello World</h1>
-  </body>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aurora IA - Análisis Pulmonar</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand-dark': '#0D1117',
+                        'brand-dark-secondary': '#161B22',
+                        'brand-blue': '#3B82F6',
+                        'brand-light': '#CDD5E0',
+                        'brand-border': '#30363D',
+                    },
+                    animation: {
+                        'text-glow': 'text-glow 1.5s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        'text-glow': {
+                            '0%': { textShadow: '0 0 5px rgba(59, 130, 246, 0.3)' },
+                            '100%': { textShadow: '0 0 20px rgba(59, 130, 246, 0.8)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-brand-dark text-brand-light font-sans antialiased flex flex-col min-h-screen">
+
+    <!-- HEADER -->
+    <header class="bg-brand-dark-secondary border-b border-brand-border sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-white">Aurora IA</h1>
+            <nav class="flex items-center space-x-6">
+                <a href="/" class="text-white font-semibold">Análisis</a>
+                <a href="/about" class="text-gray-400 hover:text-white transition-colors duration-300">Sobre el Proyecto</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="container mx-auto px-6 py-10 flex-grow flex items-center justify-center">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch w-full max-w-6xl">
+            
+            <!-- COLUMNA IZQUIERDA: CARGA Y PREVIEW -->
+            <div class="bg-brand-dark-secondary border border-brand-border rounded-lg shadow-lg flex flex-col h-full">
+                
+                <!-- ÁREA DE CARGA -->
+                <div id="uploadArea" class="flex-grow flex flex-col items-center justify-center p-8 border-4 border-dashed border-brand-border rounded-lg m-6 hover:border-brand-blue hover:bg-gray-800/20 transition-all duration-300 cursor-pointer">
+                    <svg class="w-16 h-16 text-brand-blue mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    <h3 class="text-xl font-semibold text-white">Arrastra tu imagen aquí</h3>
+                    <p class="text-gray-400 mt-1">o haz click para seleccionar</p>
+                    <p class="text-xs text-gray-500 mt-4">Formatos soportados: JPG, PNG, DICOM (hasta 10MB)</p>
+                    <input type="file" id="fileInput" class="hidden" accept="image/jpeg,image/png,.dcm">
+                </div>
+
+                <!-- VISTA PREVIA -->
+                <div id="imagePreview" class="hidden flex-grow flex-col items-center justify-center p-6 m-6">
+                    <img id="previewImg" src="" alt="Previsualización de imagen" class="max-h-[450px] rounded-lg shadow-md mb-4">
+                    <button id="clearBtn" class="mt-2 px-4 py-2 bg-brand-blue text-white rounded-md font-semibold hover:bg-blue-600 transition-colors duration-300">Cambiar Imagen</button>
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA: RESULTADOS -->
+            <div id="resultsContainer" class="bg-brand-dark-secondary border border-brand-border rounded-lg shadow-lg flex flex-col h-full transition-all duration-300">
+                
+                <!-- ESTADO INICIAL -->
+                <div id="resultsEmpty" class="flex-grow flex flex-col items-center justify-center text-center p-8">
+                    <svg class="w-20 h-20 text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                    <h2 class="text-2xl font-bold text-white">Esperando Análisis</h2>
+                    <p class="text-gray-400 mt-2">Carga una radiografía pulmonar para iniciar el diagnóstico por IA.</p>
+                </div>
+
+                <!-- ESTADO DE CARGA -->
+                <div id="resultsLoading" class="hidden flex-grow flex-col items-center justify-center p-8">
+                    <div class="animate-spin rounded-full h-24 w-24 border-t-2 border-b-2 border-brand-blue"></div>
+                    <p class="mt-6 text-xl text-white font-semibold">Analizando...</p>
+                </div>
+
+                <!-- ESTADO DE ERROR -->
+                <div id="resultsError" class="hidden flex-grow flex-col items-center justify-center text-center p-8">
+                     <svg class="w-20 h-20 text-red-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                     <h2 class="text-2xl font-bold text-white" id="errorMessage"></h2>
+                     <button id="retryBtn" class="mt-6 px-5 py-2.5 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all duration-300">Reintentar Análisis</button>
+                </div>
+                
+                <!-- CONTENIDO DE RESULTADOS -->
+                <div id="resultsContent" class="hidden flex-grow flex-col p-6 space-y-6">
+                    
+                    <!-- Diagnóstico Principal -->
+                    <div class="bg-brand-dark p-6 rounded-lg border border-brand-border">
+                        <div class="flex justify-between items-center">
+                            <h2 id="diagnosisTitle" class="text-3xl font-bold text-white"></h2>
+                            <p id="confidencePercent" class="text-4xl font-mono font-bold text-brand-blue"></p>
+                        </div>
+                        <p class="text-sm text-gray-400 uppercase tracking-wider mt-2 mb-3">Confianza del Diagnóstico</p>
+                        <div class="w-full bg-brand-border rounded-full h-2.5">
+                            <div id="confidenceFill" class="h-2.5 rounded-full transition-all duration-1000 ease-out"></div>
+                        </div>
+                    </div>
+
+                    <!-- Diagnósticos Diferenciales -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-white mb-3">Diagnósticos Alternativos</h3>
+                        <div id="differentialList" class="space-y-3"></div>
+                    </div>
+
+                    <!-- Explicabilidad SHAP -->
+                    <div>
+                        <h3 class="text-xl font-semibold text-white mb-2">¿Por qué este diagnóstico?</h3>
+                        <p class="text-sm text-gray-400 mb-3">Las áreas resaltadas en la imagen indican las características que más influyeron en la decisión del modelo.</p>
+                        <img id="shapImage" src="" alt="Explicación SHAP" class="rounded-lg border border-brand-border w-full">
+                    </div>
+
+                    <button id="newAnalysisBtn" class="w-full mt-4 py-3 bg-brand-blue text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors duration-300">Analizar Otra Imagen</button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="text-center py-6 text-xs text-gray-500">
+        <p>&copy; 2024 Aurora IA | Creado con IA para Unicolombo | <a href="/about" class="hover:text-brand-blue">Sobre el Proyecto</a></p>
+    </footer>
+
+    <!-- JS -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/ui.js"></script>
+    <script src="/static/js/upload.js"></script>
+    <script src="/static/js/main.js"></script>
+
+</body>
 </html>

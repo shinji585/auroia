@@ -1,0 +1,98 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sobre el Proyecto - Aurora IA</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand-dark': '#0D1117',
+                        'brand-dark-secondary': '#161B22',
+                        'brand-blue': '#3B82F6',
+                        'brand-light': '#CDD5E0',
+                        'brand-border': '#30363D',
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-brand-dark text-brand-light font-sans antialiased flex flex-col min-h-screen">
+
+    <!-- HEADER -->
+    <header class="bg-brand-dark-secondary border-b border-brand-border sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-white">Aurora IA</h1>
+            <nav class="flex items-center space-x-6">
+                <a href="/" class="text-gray-400 hover:text-white transition-colors duration-300">Análisis</a>
+                <a href="/about" class="text-white font-semibold">Sobre el Proyecto</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="container mx-auto px-6 py-16 flex-grow">
+        <div class="max-w-4xl mx-auto">
+            
+            <div class="text-center mb-12">
+                <h1 class="text-5xl font-extrabold text-white leading-tight">Sobre el Proyecto Aurora IA</h1>
+                <p class="mt-4 text-xl text-gray-400">Una herramienta de apoyo para el diagnóstico de enfermedades pulmonares mediante IA.</p>
+            </div>
+
+            <div class="bg-brand-dark-secondary border border-brand-border rounded-lg shadow-lg p-8 space-y-8">
+                
+                <div>
+                    <h2 class="text-3xl font-bold text-brand-blue mb-3">El Problema</h2>
+                    <p class="text-lg text-gray-300 leading-relaxed">
+                        El diagnóstico de enfermedades pulmonares a través de imágenes médicas, como las radiografías, es un proceso complejo que requiere alta especialización y tiempo. En entornos de alta demanda, o para personal médico en formación, una herramienta de apoyo que ofrezca una segunda opinión rápida y basada en datos puede ser invaluable para agilizar la triage y apoyar la toma de decisiones.
+                    </p>
+                </div>
+
+                <div>
+                    <h2 class="text-3xl font-bold text-brand-blue mb-3">¿Cómo Funciona?</h2>
+                    <p class="text-lg text-gray-300 leading-relaxed mb-4">
+                        Aurora IA utiliza un modelo de Deep Learning basado en la arquitectura <strong class="text-white">ResNet50</strong>, pre-entrenado en un vasto conjunto de datos de imágenes médicas. El proceso es simple:
+                    </p>
+                    <ul class="list-disc list-inside space-y-3 pl-4">
+                        <li class="text-gray-300"><strong class="text-white">Carga:</strong> El usuario sube una imagen médica (ej. radiografía de tórax).</li>
+                        <li class="text-gray-300"><strong class="text-white">Análisis:</strong> La imagen es procesada por el modelo de IA, que la analiza en busca de patrones característicos de diversas patologías pulmonares.</li>
+                        <li class="text-gray-300"><strong class="text-white">Resultado:</strong> En segundos, el sistema devuelve un diagnóstico principal, su nivel de confianza, y una lista de diagnósticos diferenciales.</li>
+                        <li class="text-gray-300"><strong class="text-white">Explicabilidad:</strong> Para fomentar la confianza y la transparencia, Aurora IA genera un mapa de calor (usando una técnica llamada SHAP) que muestra visualmente qué regiones de la imagen influyeron más en la decisión del modelo.</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h2 class="text-3xl font-bold text-brand-blue mb-3">Limitaciones del Proyecto</h2>
+                    <p class="text-lg text-gray-300 leading-relaxed">
+                        Es crucial entender que <strong class="text-yellow-400">Aurora IA es una herramienta de apoyo y no un sustituto del juicio clínico profesional</strong>. Los diagnósticos generados deben ser siempre verificados por un médico cualificado. El modelo puede tener limitaciones en casos atípicos o con baja calidad de imagen.
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="text-center py-6 text-xs text-gray-500">
+        <p>&copy; 2024 Aurora IA | Creado con IA para Unicolombo | <a href="/" class="hover:text-brand-blue">Volver a Análisis</a></p>
+    </footer>
+
+</body>
+</html>
