@@ -1,6 +1,7 @@
 flask
+werkzeug
 tensorflow
 numpy
-matplotlib
-werkzeug
 shap
+matplotlib
+python-dotenv

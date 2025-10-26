@@ -113,9 +113,9 @@ def make_prediction(img_path):
     try:
         shap_values = explainer.shap_values(processed_image)
         # Asegurarse de que la carpeta de salida exista
-        os.makedirs("src/static/shap", exist_ok=True) 
+        os.makedirs("static/shap", exist_ok=True) 
         shap_image_filename = f"shap_{os.path.basename(img_path)}.png"
-        shap_output_path = os.path.join("src/static/shap", shap_image_filename)
+        shap_output_path = os.path.join("static/shap", shap_image_filename)
         
         generate_shap_image(shap_values, processed_image, shap_output_path)
         

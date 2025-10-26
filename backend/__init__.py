@@ -6,10 +6,13 @@ import logging
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
+from dotenv import load_dotenv
 
 # Importar los dos tipos de lógica de análisis
 from .model.predict import load_model_resources, make_prediction
 from .blood_analyzer import analyze_blood_data
+
+load_dotenv()
 
 # --- Configuración de Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,9 +31,9 @@ CLASS_NAMES_SKIN = [
 
 def create_app():
     """Crea y configura una instancia de la aplicación Flask."""
-    app = Flask(__name__, static_folder='../src/static', template_folder='../src')
+    app = Flask(__name__, static_folder='../static', template_folder='../src')
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-    app.config['SECRET_KEY'] = 'tu_super_secreto_aqui' # Cambiar en producción
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key_for_development') # Cambiar en producción
 
     # Crear el directorio de subidas si no existe
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -65,8 +68,8 @@ def create_app():
     def about():
         return render_template('about.html')
 
-    @app.route('/api/predict', methods=['POST'])
-    def predict():
+    @app.route('/api/analyze', methods=['POST'])
+    def analyze():
         """Endpoint unificado para manejar todos los tipos de análisis."""
         # 1. Validar la solicitud
         if 'file' not in request.files:
