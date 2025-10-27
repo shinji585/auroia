@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Informe SHAP detallado - Aurora IA</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="/static/js/shap_report.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body{background:#0D1117;color:#CDD5E0;font-family:Inter, sans-serif}</style>
+</head>
+<body class="p-6">
+  <div class="max-w-5xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Informe detallado de explicación (SHAP)</h1>
+
+    <div id="summary" class="bg-brand-dark-secondary p-4 rounded-lg mb-4">
+      <!-- Resumen generado por JS -->
+    </div>
+
+    <div id="plot-area" class="bg-black p-4 rounded-lg mb-4">
+      <div id="plotlyReport"></div>
+    </div>
+
+    <div id="steps" class="bg-brand-dark p-4 rounded-lg">
+      <h2 class="text-xl font-semibold mb-2">Explicación paso a paso</h2>
+      <ol id="stepList" class="list-decimal list-inside text-sm space-y-2"></ol>
+    </div>
+  </div>
+</body>
+</html>

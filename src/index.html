@@ -110,8 +110,8 @@
                 </div>
                 
                 <!-- CONTENIDO DE RESULTADOS -->
-                <div id="resultsContent" class="hidden flex-grow flex-col p-6 space-y-6">
-                    <!-- El contenido de esta sección será generado dinámicamente por ui.js -->
+                <div id="resultsContent" class="hidden flex-grow flex-col p-6 space-y-6 overflow-y-auto max-h-[800px]">
+                    <!-- El contenido de esta sección será generado dinámicamente por results_view.js -->
                 </div>
 
             </div>
@@ -120,11 +120,12 @@
 
     <!-- FOOTER -->
     <footer class="text-center py-6 text-xs text-gray-500">
-        <p>&copy; 2024 Aurora IA | Creado con IA para Unicolombo | <a href="/about" class="hover:text-brand-blue">Sobre el Proyecto</a></p>
+        <p>&copy; 2025 Aurora IA | Creado con IA para Unicolombo | <a href="/about" class="hover:text-brand-blue">Sobre el Proyecto</a></p>
     </footer>
 
     <!-- JS -->
-    <script src="/static/js/api.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="/static/js/results_view.js"></script>
     <script src="/static/js/ui.js"></script>
     <script src="/static/js/upload.js"></script>
     <script src="/static/js/main.js"></script>

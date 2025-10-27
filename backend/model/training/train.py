@@ -1,7 +1,9 @@
 
-import tensorflow as tf
 import os
 import logging
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator # type: ignore
+from tensorflow.keras.optimizers import Adam # type: ignore
 from backend.model.model import create_model
 
 # --- Configuración y Constantes ---
@@ -29,7 +31,7 @@ def run_training():
         return
 
     # 2. Generadores de Datos (Data Augmentation y Carga)
-    train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+    train_datagen = ImageDataGenerator(
         rescale=1./255,
         rotation_range=40,
         width_shift_range=0.2,
@@ -40,7 +42,7 @@ def run_training():
         fill_mode='nearest'
     )
 
-    validation_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1./255)
+    validation_datagen = ImageDataGenerator(rescale=1./255)
 
     try:
         train_generator = train_datagen.flow_from_directory(
@@ -67,11 +69,21 @@ def run_training():
         logging.error(f"No se pudo crear el modelo. Abortando entrenamiento. Error: {error}")
         return
 
+    if model is None:
+        logging.error("No se pudo crear el modelo")
+        return
+        
+    optimizer = Adam(learning_rate=0.0001)
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+        optimizer=optimizer,
         loss='binary_crossentropy',
         metrics=['accuracy']
     )
+
+    # Asegurar que el modelo base esté en modo de inferencia
+    for layer in model.layers:
+        if 'resnet' in layer.name.lower():
+            layer.trainable = False
 
     logging.info("Modelo compilado exitosamente. Iniciando entrenamiento...")
 

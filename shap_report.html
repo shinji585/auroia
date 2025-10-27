@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Detallado SHAP - Aurora IA</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand-dark': '#0D1117',
+                        'brand-dark-secondary': '#161B22',
+                        'brand-blue': '#3B82F6',
+                        'brand-light': '#CDD5E0',
+                        'brand-border': '#30363D',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-brand-dark text-brand-light font-sans antialiased">
+    
+    <!-- HEADER -->
+    <header class="bg-brand-dark-secondary border-b border-brand-border sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <h1 class="text-2xl font-bold text-white">Informe Detallado del Análisis</h1>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="container mx-auto px-6 py-10">
+        <div class="max-w-4xl mx-auto">
+            <!-- Resumen Principal -->
+            <div class="bg-brand-dark-secondary border border-brand-border rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-semibold mb-4">Diagnóstico</h2>
+                <div id="mainDiagnosis" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Explicación SHAP -->
+            <div class="bg-brand-dark-secondary border border-brand-border rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-semibold mb-4">Análisis Visual de Características (SHAP)</h2>
+                <div id="shapVisualization" class="mb-4">
+                    <!-- Plotly se renderizará aquí -->
+                </div>
+                <div id="shapExplanation" class="text-brand-light">
+                    <!-- Explicación se insertará aquí -->
+                </div>
+            </div>
+
+            <!-- Información Técnica -->
+            <div class="bg-brand-dark-secondary border border-brand-border rounded-lg p-6">
+                <h2 class="text-xl font-semibold mb-4">Información Técnica</h2>
+                <div class="space-y-4">
+                    <p class="text-brand-light">Este análisis fue realizado utilizando un modelo de inteligencia artificial basado en ResNet50, especializado en la detección de características melanocíticas en imágenes de piel.</p>
+                    <div class="bg-brand-dark p-4 rounded-lg">
+                        <h3 class="font-semibold mb-2">Notas Importantes:</h3>
+                        <ul class="list-disc list-inside space-y-2">
+                            <li>Este es un análisis preliminar asistido por IA</li>
+                            <li>No reemplaza el diagnóstico profesional</li>
+                            <li>Consulte siempre con un dermatólogo certificado</li>
+                            <li>Mantenga un registro fotográfico de cambios en la piel</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <!-- App Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Obtener parámetros de la URL
+            const params = new URLSearchParams(window.location.search);
+            const plotUrl = params.get('plot');
+            const explanation = params.get('explanation');
+            const decision = params.get('decision');
+            const malignoProb = parseFloat(params.get('maligno')) || 0;
+            const benignoProb = parseFloat(params.get('benigno')) || 0;
+
+            // Actualizar diagnóstico principal
+            const mainDiagnosis = document.getElementById('mainDiagnosis');
+            let riskLevel, riskClass, recommendation;
+
+            if (malignoProb > 0.96) {
+                riskLevel = "Alto Riesgo";
+                riskClass = 'text-red-500';
+                recommendation = "Se recomienda consultar a un dermatólogo inmediatamente.";
+            } else if (malignoProb > 0.7) {
+                riskLevel = "Riesgo Moderado";
+                riskClass = 'text-orange-500';
+                recommendation = "Se recomienda una evaluación profesional para mayor seguridad.";
+            } else if (malignoProb < 0.3) {
+                riskLevel = "Bajo Riesgo";
+                riskClass = 'text-green-500';
+                recommendation = "Parece ser una lesión benigna, pero mantenga un monitoreo regular.";
+            } else {
+                riskLevel = "Riesgo Indeterminado";
+                riskClass = 'text-yellow-500';
+                recommendation = "La confianza está en un rango intermedio. Se recomienda recortar la imagen para enfocarse en la lesión o consultar un profesional.";
+            }
+
+            mainDiagnosis.innerHTML = `
+                <div class="bg-brand-dark p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold ${riskClass} mb-2">${riskLevel}</h3>
+                    <p class="text-brand-light">${recommendation}</p>
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-400">Probabilidad Benigno</p>
+                            <p class="text-xl font-semibold text-green-500">${(benignoProb * 100).toFixed(1)}%</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-400">Probabilidad Maligno</p>
+                            <p class="text-xl font-semibold text-red-500">${(malignoProb * 100).toFixed(1)}%</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Cargar y mostrar visualización SHAP
+            if (plotUrl) {
+                try {
+                    const response = await fetch(plotUrl);
+                    const plotData = await response.json();
+                    Plotly.newPlot('shapVisualization', plotData.data, plotData.layout, {responsive: true});
+                } catch (error) {
+                    console.error('Error cargando visualización SHAP:', error);
+                    document.getElementById('shapVisualization').innerHTML = '<p class="text-red-500">Error cargando la visualización</p>';
+                }
+            }
+
+            // Mostrar explicación SHAP
+            if (explanation) {
+                document.getElementById('shapExplanation').textContent = explanation;
+            }
+        });
+    </script>
+</body>
+</html>

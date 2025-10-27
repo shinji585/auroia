@@ -1,0 +1,24 @@
+name: Aurora_IA
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - h5py
+  - joblib
+  - tqdm
+  - pip:
+    - tensorflow-cpu==2.10.0
+    - kaggle
+    - shap
+    - python-dotenv
+    - pillow
+    - requests
+    - scikit-image
+    - seaborn

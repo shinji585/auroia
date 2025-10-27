@@ -4,4 +4,6 @@ tensorflow
 numpy
 shap
 matplotlib
+plotly
+kaleido
 python-dotenv

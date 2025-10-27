@@ -118,14 +118,25 @@ function showErrorState(message) {
  * @param {object} data - El objeto con los datos del resultado.
  */
 function showResultsState(data) {
-    // Lógica para renderizar los resultados
-    const formattedJson = JSON.stringify(data, null, 4); // Indentación de 4 espacios
-    DOMElements.resultsContent.innerHTML = `<pre class="whitespace-pre-wrap text-sm bg-brand-dark p-4 rounded-lg"><code>${formattedJson}</code></pre>`;
-    
+    // Preferir renderizado avanzado si se dispone de la función displayResults
+    try {
+        if (typeof window.displayResults === 'function') {
+            window.displayResults(data);
+        } else {
+            // Fallback: mostrar JSON preformateado
+            const formattedJson = JSON.stringify(data, null, 4); // Indentación de 4 espacios
+            DOMElements.resultsContent.innerHTML = `<pre class="whitespace-pre-wrap text-sm bg-brand-dark p-4 rounded-lg"><code>${formattedJson}</code></pre>`;
+            DOMElements.resultsContent.classList.remove('hidden');
+        }
+    } catch (err) {
+        const formattedJson = JSON.stringify(data, null, 4);
+        DOMElements.resultsContent.innerHTML = `<pre class="whitespace-pre-wrap text-sm bg-brand-dark p-4 rounded-lg"><code>${formattedJson}</code></pre>`;
+        DOMElements.resultsContent.classList.remove('hidden');
+    }
+
     DOMElements.resultsEmpty.classList.add('hidden');
     DOMElements.resultsLoading.classList.add('hidden');
     DOMElements.resultsError.classList.add('hidden');
-    DOMElements.resultsContent.classList.remove('hidden');
 }
 
 /**

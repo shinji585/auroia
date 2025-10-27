@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 import logging
 import json
 from dotenv import load_dotenv
+from collections import Counter
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -33,15 +34,42 @@ def download_and_prepare_data():
     os.chmod(kaggle_json_path, 0o600)  # Set file permissions for security
 
     # 1. Download the dataset
-    logging.info("Downloading HAM10000 dataset from Kaggle...")
-    # Use -o to overwrite existing files, -q for quiet download
-    os.system("kaggle datasets download -d kmader/skin-cancer-mnist-ham10000 -o -q")
+    # 1. Download metadata and then only the sampled images using KaggleApi
+    logging.info("Downloading HAM10000 metadata and sampled images from Kaggle (no full-zip)...")
+    try:
+        from kaggle.api.kaggle_api_extended import KaggleApi
+    except Exception:
+        logging.error("kaggle package not available in the environment. Please install it (pip install kaggle) and try again.")
+        return
 
-    # 2. Unzip the dataset
-    logging.info("Unzipping dataset...")
-    with zipfile.ZipFile("skin-cancer-mnist-ham10000.zip", 'r') as zip_ref:
-        zip_ref.extractall("ham10000_temp")
-    os.remove("skin-cancer-mnist-ham10000.zip")
+    api = KaggleApi()
+    api.authenticate()
+
+    # Download metadata CSV first
+    os.makedirs("ham10000_temp", exist_ok=True)
+    metadata_file = "HAM10000_metadata.csv"
+    try:
+        logging.info("Downloading HAM10000 dataset from Kaggle...")
+        api.dataset_download_files('kmader/skin-cancer-mnist-ham10000', path='ham10000_temp', force=True)
+        
+        # Extract the downloaded zip
+        zip_path = os.path.join('ham10000_temp', 'skin-cancer-mnist-ham10000.zip')
+        if os.path.exists(zip_path):
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall('ham10000_temp')
+            os.remove(zip_path)  # Clean up the zip file after extraction
+        else:
+            logging.error("Downloaded zip file not found!")
+            return
+    except Exception as e:
+        logging.error(f"Failed to download metadata via KaggleApi: {e}")
+        return
+
+    # Load metadata
+    logging.info("Loading metadata...")
+    metadata = pd.read_csv(os.path.join('ham10000_temp', metadata_file))
+
+    # 5. Create exact stratified sample of up to 1000 images (same logic as before)
 
     # 3. Load metadata
     logging.info("Loading metadata...")
@@ -55,11 +83,43 @@ def download_and_prepare_data():
     })
     metadata['image_path'] = metadata['image_id'].apply(lambda x: f"{x}.jpg")
 
-    # 5. --- OPTIMIZATION: Create a stratified sample of the data (10% of original) ---
-    logging.info("Creating a stratified sample of 1000 images to speed up development...")
-    # Using train_test_split to create a stratified sample is a common trick.
-    # We are taking a 10% sample, so about 1000 images.
-    _, sampled_metadata = train_test_split(metadata, test_size=0.1, random_state=42, stratify=metadata['label'])
+    # 5. --- Create an exact stratified sample of up to 1000 images ---
+    sample_size = min(1000, len(metadata))
+    logging.info(f"Creating a stratified sample of {sample_size} images to speed up development...")
+
+    # Determine per-class sample counts proportionally (min 1 per class) and adjust to sum exactly sample_size
+    label_counts = metadata['label'].value_counts().to_dict()
+    total = len(metadata)
+    per_class = {label: max(1, int(round((count / total) * sample_size))) for label, count in label_counts.items()}
+    current = sum(per_class.values())
+    labels = list(per_class.keys())
+    # If we need to add samples, add to the largest classes
+    while current < sample_size:
+        # choose class with largest original count
+        target = max(labels, key=lambda l: label_counts[l])
+        per_class[target] += 1
+        current += 1
+    # If we need to remove samples, remove from classes with allocation > 1
+    while current > sample_size:
+        candidate = max(labels, key=lambda l: per_class[l] if per_class[l] > 1 else -1)
+        if per_class[candidate] > 1:
+            per_class[candidate] -= 1
+            current -= 1
+        else:
+            break
+
+    # Build the sampled metadata by sampling exactly per-class counts
+    sampled_frames = []
+    for label, n in per_class.items():
+        group = metadata[metadata['label'] == label]
+        if len(group) <= n:
+            sampled_frames.append(group)
+        else:
+            sampled_frames.append(group.sample(n=n, random_state=42))
+    sampled_metadata = pd.concat(sampled_frames).sample(frac=1, random_state=42).reset_index(drop=True)
+
+    # No need to download images individually since we already have the full dataset extracted
+    logging.info("Using images from the downloaded dataset...")
 
     # 6. Create train/validation directories
     logging.info("Creating training and validation directories...")
@@ -78,29 +138,66 @@ def download_and_prepare_data():
     train_df, validation_df = train_test_split(sampled_metadata, test_size=0.2, random_state=42, stratify=sampled_metadata['label'])
 
     # 8. Move images to the correct directories
-    def move_images(df, source_dirs, destination_dir):
+    def move_images(df, source_dirs, destination_dir, total_to_move):
+        from PIL import Image
         moved_count = 0
         for _, row in df.iterrows():
             image_filename = row['image_path']
             label = row['label']
-            # Find the image in one of the source directories
+            found = False
             for source_dir in source_dirs:
                 src_path = os.path.join(source_dir, image_filename)
                 if os.path.exists(src_path):
                     dest_path = os.path.join(destination_dir, label, image_filename)
-                    shutil.move(src_path, dest_path)
-                    moved_count += 1
+                    try:
+                        # Resize the image before saving
+                        with Image.open(src_path) as img:
+                            img = img.resize((224, 224))  # Resize to 224x224 for ResNet50
+                            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                            img.save(dest_path)
+                        moved_count += 1
+                        found = True
+                        # Log progress: every 10 images and the final image to reduce spam
+                        if moved_count % 10 == 0 or moved_count == total_to_move:
+                            logging.info(f"Progress: {moved_count}/{total_to_move} images processed and moved to {destination_dir}")
+                        else:
+                            logging.debug(f"Processed and moved {image_filename} ({moved_count}/{total_to_move})")
+                    except Exception as e:
+                        logging.error(f"Failed to process/move {src_path} -> {dest_path}: {e}")
                     break
-        logging.info(f"Moved {moved_count} images to {destination_dir}")
+            if not found:
+                logging.warning(f"Image not found in source dirs: {image_filename}")
+        logging.info(f"Finished processing and moving to {destination_dir}: {moved_count}/{total_to_move} moved")
 
-    source_image_dirs = ["ham10000_temp/HAM10000_images_part_1", "ham10000_temp/HAM10000_images_part_2"]
+    source_image_dirs = [os.path.join("ham10000_temp", "HAM10000_images_part_1"), 
+                   os.path.join("ham10000_temp", "HAM10000_images_part_2")]
     
-    logging.info("Moving training images...")
-    move_images(train_df, source_image_dirs, train_dir)
+    # Ensure source directories exist
+    for dir_path in source_image_dirs:
+        if not os.path.exists(dir_path):
+            logging.warning(f"Source directory not found: {dir_path}")
+            source_image_dirs.remove(dir_path)
     
-    logging.info("Moving validation images...")
-    move_images(validation_df, source_image_dirs, validation_dir)
+    if not source_image_dirs:
+        logging.error("No source image directories found! The dataset might not have been downloaded correctly.")
+        return
 
+    logging.info("Moving and resizing training images...")
+    expected_train = len(train_df)
+    move_images(train_df, source_image_dirs, train_dir, expected_train)
+
+    logging.info("Moving and resizing validation images...")
+    expected_val = len(validation_df)
+    move_images(validation_df, source_image_dirs, validation_dir, expected_val)
+
+    # Verify the final dataset structure
+    total_train = sum(len(os.listdir(os.path.join(train_dir, label))) for label in ['benign', 'malignant'])
+    total_val = sum(len(os.listdir(os.path.join(validation_dir, label))) for label in ['benign', 'malignant'])
+    
+    logging.info(f"Final dataset statistics:")
+    logging.info(f"- Training images: {total_train}")
+    logging.info(f"- Validation images: {total_val}")
+    
     # 9. Clean up temporary directory
     logging.info("Cleaning up temporary files...")
     shutil.rmtree("ham10000_temp")

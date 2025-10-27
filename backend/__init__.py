@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """
 Archivo principal de la aplicación Flask.
 """
@@ -41,9 +42,12 @@ def create_app():
     # --- Carga del Modelo de Imagen al iniciar ---
     try:
         logging.info("Cargando modelo de Keras para análisis de piel...")
-        skin_model = load_model(MODEL_PATH)
+        from .model.model import load_trained_model
+        skin_model, class_names = load_trained_model()
+        if skin_model is None:
+            raise ValueError("No se pudo cargar el modelo")
         logging.info("Modelo de piel cargado. Inicializando recursos...")
-        load_model_resources(skin_model, CLASS_NAMES_SKIN)
+        load_model_resources(skin_model, class_names)
     except Exception as e:
         logging.error(f"Error fatal al cargar el modelo de piel: {e}")
         skin_model = None
@@ -68,7 +72,12 @@ def create_app():
     def about():
         return render_template('about.html')
 
-    @app.route('/api/analyze', methods=['POST'])
+    @app.route('/shap_report.html')
+    def shap_report():
+        # Renderiza la plantilla del informe detallado (se esperan parámetros en la query string)
+        return render_template('shap_report.html')
+
+    @app.route('/api/analyze', methods=['POST']) # type: ignore
     def analyze():
         """Endpoint unificado para manejar todos los tipos de análisis."""
         # 1. Validar la solicitud
@@ -85,7 +94,7 @@ def create_app():
             return jsonify({"status": "error", "message": "Archivo no válido o tipo de archivo no permitido para este análisis."}), 400
 
         # 2. Procesar según el tipo de análisis
-        filename = secure_filename(file.filename)
+        filename = secure_filename(file.filename) # type: ignore
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         logging.info(f"Archivo guardado en: {filepath} para análisis de tipo: {analysis_type}")
