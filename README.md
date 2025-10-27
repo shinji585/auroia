@@ -9,5 +9,4 @@ Previews should run automatically when starting a workspace.
 ## for more information 
 ## Documentación
 
-- [DeepWiki](https://link-a-tu-deepwiki)
-- [API Documentation](link)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/shinji585/auroia)
