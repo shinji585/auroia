@@ -5,3 +5,9 @@ A Flask starter template as per [these docs](https://flask.palletsprojects.com/e
 ## Getting Started
 
 Previews should run automatically when starting a workspace.
+
+## for more information 
+## Documentación
+
+- [DeepWiki](https://link-a-tu-deepwiki)
+- [API Documentation](link)
